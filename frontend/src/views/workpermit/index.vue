@@ -24,6 +24,49 @@
       </span>
     </p>
 
+    <!-- 待签发清单：由继保人员复审判定结果驱动，不合格/超期的工作负责人对应工作票拦截签发 -->
+    <section class="gate-box">
+      <h3 class="gate-title">待签发清单（持证联审）</h3>
+      <p class="page-desc">
+        自动核对工作负责人在继保人员持证台账中的复审结果：复审不合格或超期未复审的工作票不得签发，待其补审合格后自动解除。
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>工作票号</th>
+            <th>工作任务</th>
+            <th>所属变电站</th>
+            <th>工作负责人</th>
+            <th>资格等级</th>
+            <th>复审日期</th>
+            <th>持证状态</th>
+            <th>联审结论</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="gate in issuanceRows" :key="gate.id" :class="{ 'row-blocked': gate.blocked }">
+            <td>{{ gate['工作票号'] }}</td>
+            <td>{{ gate['工作任务'] }}</td>
+            <td>{{ gate['所属变电站'] }}</td>
+            <td>{{ gate['工作负责人'] }}</td>
+            <td>{{ gate['资格等级'] || '—' }}</td>
+            <td>{{ gate['复审日期'] || '—' }}</td>
+            <td>{{ gate['持证状态'] }}</td>
+            <td :class="gate.blocked ? 'error-text' : 'gate-ok'">{{ gate.reason }}</td>
+            <td>
+              <button class="link" type="button" @click="runAction('签发许可', { id: gate.id } as EntryRow)">
+                签发许可
+              </button>
+            </td>
+          </tr>
+          <tr v-if="!issuanceRows.length">
+            <td colspan="9" class="empty-state">当前没有待签发的工作票</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -76,10 +119,11 @@ import { computed, onMounted, ref } from 'vue'
 import {
   downloadEntries,
   listEntries,
+  listPermitIssuance,
   moduleMeta,
   runAction as applyAction,
 } from '@/api/local-service'
-import type { EntryRow } from '@/data/types'
+import type { EntryRow, PermitIssuanceRow } from '@/data/types'
 
 const meta = moduleMeta('workpermit')
 const columns = ["工作票号", "工作任务", "所属变电站", "停电范围", "工作负责人", "许可时间", "终结时间", "许可状态"]
@@ -88,6 +132,7 @@ const statuses = ["待签发", "已许可", "已终结", "已作废"]
 const stats = [{"label": "待签发工作票", "value": 0}, {"label": "已许可工作票", "value": 0}, {"label": "已终结工作票", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
+const issuanceRows = ref<PermitIssuanceRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
@@ -128,6 +173,7 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    issuanceRows.value = listPermitIssuance()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '工作票许可列表读取失败'
   }
@@ -135,3 +181,23 @@ function reload() {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+.gate-box {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.gate-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.row-blocked {
+  background: #fef3f2;
+}
+.gate-ok {
+  color: #067647;
+}
+</style>
