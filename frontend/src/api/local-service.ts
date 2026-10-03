@@ -1,5 +1,6 @@
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { checkPermitHolder } from '@/api/cert-service'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -42,6 +43,13 @@ export function runAction(key: string, id: number, action: string): ActionResult
   const current = String(rows[index].status)
   if (current === target) {
     return { ok: false, message: `${meta.entity}已经是「${target}」，不用重复操作` }
+  }
+  // 工作票签发前核对工作负责人的持证复审：复审判定不合格即拦截，待签发清单保留该票。
+  if (key === 'workpermit' && action === '签发许可') {
+    const block = checkPermitHolder(String(rows[index]['工作负责人'] ?? ''))
+    if (block) {
+      return { ok: false, message: `签发被拦截：${block.原因}` }
+    }
   }
   const lastStatus = meta.statuses[meta.statuses.length - 1]
   const updated: EntryRow = {

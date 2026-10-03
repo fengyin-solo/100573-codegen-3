@@ -2,7 +2,9 @@ import { SEED_ROWS } from './seed'
 import type { EntryRow } from './types'
 
 // 本地持久化：数据放在 localStorage 里，刷新、关掉再打开都还在。
-const STORAGE_KEY = 'substation-protection:entries'
+// v2：工作票许可接入持证复审联动，播种数据同步更新；旧版本数据一次性重建。
+const STORAGE_KEY = 'substation-protection:entries:v2'
+const LEGACY_STORAGE_KEYS = ['substation-protection:entries']
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
